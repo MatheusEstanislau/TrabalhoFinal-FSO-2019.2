@@ -26,8 +26,10 @@ void only_zip_full_path(char *file_full_path){
     system(bz);
 }
 
-void copy_dir(const char *dir_path, const char *target_dir){
+void copy_dir(char *dir_path, char *target_dir){
     char copy[500] = "";
+    strcat(target_dir, ".bz2");
+
     strcat(copy, "cp -ax ");
     strcat(copy, dir_path);
     strcat(copy, " ");
@@ -35,7 +37,25 @@ void copy_dir(const char *dir_path, const char *target_dir){
     system(copy);
 }
 
-void keep_reading(const char *path){
+void make_tar(char *target_dir){
+    char tar[500] = "";
+
+    strcat(tar, "tar cf ");
+    strcat(tar, target_dir);
+    strcat(tar, ".tar ");
+    strcat(tar, target_dir);
+    system(tar);
+}
+
+void remove_dir(char *target_dir){
+    char rm[500] = "";
+
+    strcat(rm, "rm -rf ");
+    strcat(rm, target_dir);
+    system(rm);
+}
+
+void keep_reading(char *path){
     struct dirent *entry;
     DIR *dp;
 
@@ -75,7 +95,7 @@ void keep_reading(const char *path){
     }
 
     closedir(dp);
-} 
+}
 
 int main(int argc, char **argv) {
     if(argc != 3 || argv[1] == NULL || argv[2] == NULL){
@@ -85,6 +105,8 @@ int main(int argc, char **argv) {
 
     copy_dir(argv[1], argv[2]);
     keep_reading(argv[2]);
+    make_tar(argv[2]);
+    remove_dir(argv[2]);
 
     return 0;
 }
