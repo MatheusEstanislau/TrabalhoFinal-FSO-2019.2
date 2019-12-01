@@ -3,6 +3,7 @@
 #include <string.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <time.h>
 
 // Exemplo original em https://en.wikibooks.org/wiki/C_Programming/POSIX_Reference/dirent.h
 
@@ -19,22 +20,47 @@ int isdirectory(char *path) {
 }
 
 void only_zip_full_path(char *file_full_path){
+    // Tratar casos com espaço " "
+    // "hello world.txt" ficaria "hello\ world.txt"
+
     char bz[500] = "";
-    strcat(bz, "bzip2");
-    strcat(bz, " ");
+    strcat(bz, "bzip2 ");
+    // strcat(bz, " ");
     strcat(bz, file_full_path);
     system(bz);
 }
 
 void copy_dir(char *dir_path, char *target_dir){
     char copy[500] = "";
-    strcat(target_dir, ".bz2");
+    // strcat(target_dir, ".bz2");
 
     strcat(copy, "cp -ax ");
     strcat(copy, dir_path);
     strcat(copy, " ");
     strcat(copy, target_dir);
     system(copy);
+}
+
+void copy_file(FILE *orig, char *file_name, char *target_dir){
+
+    char copy_path[500] = "";
+    strcat(copy_path, target_dir);
+    strcat(copy_path, "/");
+    strcat(copy_path, file_name);
+
+    FILE *copy = fopen(copy_path, "w");
+
+    printf("Escrevendo...\n");
+    
+    char c = fgetc(orig);
+    while(c != EOF){
+        fputc(c, copy);
+        c = fgetc(orig);
+    }
+    
+    printf("cópia finalizada\n");
+    fclose(orig);
+    fclose(copy);
 }
 
 void make_tar(char *target_dir){
@@ -55,42 +81,47 @@ void remove_dir(char *target_dir){
     system(rm);
 }
 
-void keep_reading(char *path){
+void keep_reading(char *current, char *destiny){
     struct dirent *entry;
     DIR *dp;
 
-    dp = opendir(path);
-    
+    dp = opendir(current);
+
     if (dp == NULL){
-        perror("opendir");
+        perror("Falha ao abrir diretório");
         exit(2);
     }
 
-    char full_path[500] = "";
-    strcpy(full_path, path);
+    char path_current[500] = "";
+    char path_destiny[500] = "";
+
+    strcpy(path_current, current);
+    strcpy(path_destiny, destiny);
 
     while((entry = readdir(dp)) != NULL){
-        if(strcmp(entry->d_name, ".") == 0){
-            // do nothing
-        }
-        else if(strcmp(entry->d_name, "..") == 0){
-            // do nothing
-        }
-        else{
-            puts(entry->d_name);
-            strcat(full_path, "/");
-            strcat(full_path, entry->d_name);
-            puts(full_path);
+        if((strcmp(entry->d_name, ".") != 0) && (strcmp(entry->d_name, "..") != 0)){
+            strcat(path_current, "/");
+            strcat(path_current, entry->d_name);
+            strcat(path_destiny, "/");
+            strcat(path_destiny, entry->d_name);
 
-            if(isdirectory(full_path) != 0){
-                puts(full_path);
-                keep_reading(full_path);
+            if(isdirectory(path_current) != 0){ // se for diretório
+                // criar o mesmo diretório na pasta de output
+                
+                mkdir(path_destiny, 0777);
+                keep_reading(path_current, path_destiny);
+
             }
-            else{
-                only_zip_full_path(full_path);
+            else{ // se não for diretório
+                printf("\nCurrent %s\n", path_current);
+                printf("Destiny: %s\n", path_destiny);
+                
+                // puts(path_current);
+                // only_zip_full_path(path_current);
             }
 
-            strcpy(full_path, path);
+            strcpy(path_current, current);
+            strcpy(path_destiny, destiny);
         }
     }
 
@@ -103,10 +134,18 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
-    copy_dir(argv[1], argv[2]);
-    keep_reading(argv[2]);
-    make_tar(argv[2]);
-    remove_dir(argv[2]);
+    // copy_dir(argv[1], argv[2]);
+
+    // char make_dir[500] = "mkdir ";
+    // strcat(make_dir, argv[2]);
+    // system(make_dir);
+
+    mkdir(argv[2], 0777);
+
+    keep_reading(argv[1], argv[2]);
+
+    // make_tar(argv[2]);
+    // remove_dir(argv[2]);
 
     return 0;
 }
