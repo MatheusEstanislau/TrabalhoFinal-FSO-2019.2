@@ -19,6 +19,24 @@ int isdirectory(char *path) {
     }
 }
 
+void copy_file(char* path_current, char* path_destiny) {
+  FILE *old_file, *new_file;
+  
+  old_file = fopen(path_current, "r");
+  new_file = fopen(path_destiny, "w");
+
+  int char_buffer;
+  while(1) {
+    char_buffer = fgetc(old_file);
+    if(!feof(old_file))
+      fputc(char_buffer, new_file);
+    else break;
+  }
+
+  fclose(new_file);
+  fclose(old_file);
+}
+
 void only_zip_full_path(char *file_full_path){
     // Tratar casos com espaço " "
     // "hello world.txt" ficaria "hello\ world.txt"
@@ -39,28 +57,6 @@ void copy_dir(char *dir_path, char *target_dir){
     strcat(copy, " ");
     strcat(copy, target_dir);
     system(copy);
-}
-
-void copy_file(FILE *orig, char *file_name, char *target_dir){
-
-    char copy_path[500] = "";
-    strcat(copy_path, target_dir);
-    strcat(copy_path, "/");
-    strcat(copy_path, file_name);
-
-    FILE *copy = fopen(copy_path, "w");
-
-    printf("Escrevendo...\n");
-    
-    char c = fgetc(orig);
-    while(c != EOF){
-        fputc(c, copy);
-        c = fgetc(orig);
-    }
-    
-    printf("cópia finalizada\n");
-    fclose(orig);
-    fclose(copy);
 }
 
 void make_tar(char *target_dir){
@@ -116,6 +112,8 @@ void keep_reading(char *current, char *destiny){
                 printf("\nCurrent %s\n", path_current);
                 printf("Destiny: %s\n", path_destiny);
                 
+                printf("COPIANDO ARQUIVO\n");
+                copy_file(path_current, path_destiny);
                 // puts(path_current);
                 // only_zip_full_path(path_current);
             }
