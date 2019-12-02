@@ -38,25 +38,11 @@ void copy_file(char* path_current, char* path_destiny) {
 }
 
 void only_zip_full_path(char *file_full_path){
-    // Tratar casos com espaço " "
-    // "hello world.txt" ficaria "hello\ world.txt"
-
     char bz[500] = "";
-    strcat(bz, "bzip2 ");
-    // strcat(bz, " ");
+    strcat(bz, "bzip2 \"");
     strcat(bz, file_full_path);
+    strcat(bz, "\"");
     system(bz);
-}
-
-void copy_dir(char *dir_path, char *target_dir){
-    char copy[500] = "";
-    // strcat(target_dir, ".bz2");
-
-    strcat(copy, "cp -ax ");
-    strcat(copy, dir_path);
-    strcat(copy, " ");
-    strcat(copy, target_dir);
-    system(copy);
 }
 
 void make_tar(char *target_dir){
@@ -106,16 +92,13 @@ void keep_reading(char *current, char *destiny){
                 
                 mkdir(path_destiny, 0777);
                 keep_reading(path_current, path_destiny);
-
             }
             else{ // se não for diretório
-                printf("\nCurrent %s\n", path_current);
+                printf("\nCurrent: %s\n", path_current);
                 printf("Destiny: %s\n", path_destiny);
                 
-                printf("COPIANDO ARQUIVO\n");
                 copy_file(path_current, path_destiny);
-                // puts(path_current);
-                // only_zip_full_path(path_current);
+                only_zip_full_path(path_destiny);
             }
 
             strcpy(path_current, current);
@@ -132,18 +115,11 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
-    // copy_dir(argv[1], argv[2]);
-
-    // char make_dir[500] = "mkdir ";
-    // strcat(make_dir, argv[2]);
-    // system(make_dir);
-
     mkdir(argv[2], 0777);
-
     keep_reading(argv[1], argv[2]);
 
-    // make_tar(argv[2]);
-    // remove_dir(argv[2]);
+    make_tar(argv[2]);
+    remove_dir(argv[2]);
 
     return 0;
 }
