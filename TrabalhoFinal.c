@@ -4,6 +4,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <unistd.h>
 
 // Exemplo original em https://en.wikibooks.org/wiki/C_Programming/POSIX_Reference/dirent.h
 
@@ -42,7 +43,7 @@ void only_zip_full_path(char *file_full_path){
     strcat(bz, "bzip2 \"");
     strcat(bz, file_full_path);
     strcat(bz, "\"");
-    system(bz);
+    int s = system(bz);
 }
 
 void make_tar(char *target_dir){
@@ -52,7 +53,13 @@ void make_tar(char *target_dir){
     strcat(tar, target_dir);
     strcat(tar, ".tar ");
     strcat(tar, target_dir);
-    system(tar);
+    int s = system(tar);
+}
+
+void remove_dot_tar_from_string(char* string){
+    char temp[200] = "";
+    strncat(temp, string, strlen(string)-4);
+    strcpy(string, temp);
 }
 
 void remove_dir(char *target_dir){
@@ -60,7 +67,7 @@ void remove_dir(char *target_dir){
 
     strcat(rm, "rm -rf ");
     strcat(rm, target_dir);
-    system(rm);
+    int s = system(rm);
 }
 
 void keep_reading(char *current, char *destiny){
@@ -94,8 +101,8 @@ void keep_reading(char *current, char *destiny){
                 keep_reading(path_current, path_destiny);
             }
             else{ // se não for diretório
-                printf("\nCurrent: %s\n", path_current);
-                printf("Destiny: %s\n", path_destiny);
+                // printf("\nCurrent: %s\n", path_current);
+                // printf("Destiny: %s\n", path_destiny);
                 
                 copy_file(path_current, path_destiny);
                 only_zip_full_path(path_destiny);
@@ -115,9 +122,9 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
+    remove_dot_tar_from_string(argv[2]);
     mkdir(argv[2], 0777);
     keep_reading(argv[1], argv[2]);
-
     make_tar(argv[2]);
     remove_dir(argv[2]);
 
