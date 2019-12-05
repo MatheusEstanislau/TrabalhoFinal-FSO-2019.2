@@ -29,6 +29,6 @@ int main() {
   pthread_create(&thread, NULL, myturn, NULL);
   yourturn();
   
-  pthread_join(thread, NULL); // Espera até uma thread em específico terminar;
+  pthread_join(thread, NULL); // Espera até uma thread em específico terminar, o NULL é onde voce pode pegar o valor de retorno da thread;
   return 0;
 }
