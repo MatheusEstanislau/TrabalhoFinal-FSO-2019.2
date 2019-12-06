@@ -43,19 +43,39 @@ char* dequeue(queue *q){
     q->front = (q->front + 1) % QUEUE_SIZE;
     q->size = q->size - 1;
     return string;
+}   
+
+void print_queue(queue *q){
+    if(q->size == 0) printf("FILA VAZIA\n");
+
+    else{
+        printf("\nFILA\n");
+        int i = 0;
+        while(i < q->size){
+            puts(q->files[(q->front)+i]);
+            i++;
+        }
+    }
 }
 
 int main(){
 
     queue *fila = create_queue();
+    print_queue(fila);
 
     enqueue(fila, "alo");
     enqueue(fila, "eae");
     enqueue(fila, "opa");
+    print_queue(fila);
 
-    puts(dequeue(fila));
-    puts(dequeue(fila));
-    puts(dequeue(fila));
+    dequeue(fila);
+    print_queue(fila);
+    
+    enqueue(fila, "hi there");
+    print_queue(fila);
+    
+    dequeue(fila);
+    print_queue(fila);
 
     return 0;
 }
