@@ -11,14 +11,69 @@
 #define QUEUE_SIZE 500          // tamanho fixo da fila
 #define FILE_SIZE  500          // tamanho fixo dos caminhos de arquivos
 
-// Experimento para testar o funcionamento da fila
-
 typedef struct queue{
     char **files;               // array de strings
     int front;                  // posição do começo
     int rear;                   // posição do fim
     int size;                   // tamanho da fila no momento
-}queue;
+} queue;
+
+queue *fila;
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t condition_var = PTHREAD_COND_INITIALIZER;
+
+int flag = 0;
+
+queue* create_queue();
+int is_queue_full(queue *q);
+int is_queue_empty(queue *q);
+void enqueue(queue *q, char *string);
+char* dequeue(queue *q);
+
+int isdirectory(char *path);
+void copy_file(char* path_current, char* path_destiny);
+int only_zip_full_path(char *file_full_path);
+int make_tar(char *target_dir);
+void remove_dot_tar_from_string(char* string);
+int remove_dir(char *target_dir);
+void keep_reading(char *current, char *destiny);
+
+void *read_dir(void *argv);
+void *consume_queue();
+void *consume_queue2();
+
+int main(int argc, char **argv) {
+    if(argc != 3 || argv[1] == NULL || argv[2] == NULL){
+        printf("São esperados 2 argumentos: diretório alvo e diretório destino.\nOperação abortada.\n");
+        exit(1);
+    }
+
+    remove_dot_tar_from_string(argv[2]);
+    mkdir(argv[2], 0777);
+
+    fila = create_queue();
+
+    pthread_t read_thread;  
+    pthread_t compact_thread1;
+    pthread_t compact_thread2;
+
+    // pthread_attr_t a;
+    // pthread_attr_init(&a);
+    // pthread_attr_setscope(&a, PTHREAD_SCOPE_PROCESS);
+
+    pthread_create(&read_thread, NULL, read_dir, (void *)argv);
+    pthread_create(&compact_thread1, NULL, consume_queue, NULL);
+    // pthread_create(&compact_thread2, NULL, consume_queue2, NULL);
+
+    pthread_join(compact_thread1, NULL);
+    // pthread_join(compact_thread2, NULL);
+    pthread_join(read_thread, NULL);
+    
+    make_tar(argv[2]);
+    remove_dir(argv[2]);
+    
+    return 0;
+}
 
 queue* create_queue(){
     queue *q = (queue *) malloc(sizeof(queue));
@@ -29,13 +84,9 @@ queue* create_queue(){
     return q;
 }
 
-int is_queue_full(queue *q){
-    return (q->size == QUEUE_SIZE);
-}
+int is_queue_full(queue *q){ return (q->size == QUEUE_SIZE); }
 
-int is_queue_empty(queue *q){
-    return (q->size == 0);
-}
+int is_queue_empty(queue *q){ return (q->size == 0); }
 
 void enqueue(queue *q, char *string){
     if(is_queue_full(q)) exit(1);
@@ -55,21 +106,6 @@ char* dequeue(queue *q){
     return string;
 }   
 
-void print_queue(queue *q){
-    if(q->size == 0) printf("FILA VAZIA\n");
-
-    else{
-        printf("\nFILA\n");
-        int i = q->front;
-        while(i <= q->rear){
-            puts(q->files[i]);
-            i++;
-        }
-    }
-}
-
-// retorna != 0 se for diretório
-// retorna == 0 se não for diretório
 int isdirectory(char *path) {
     struct stat statbuf;
     if (stat(path, &statbuf) == -1) return 0;
@@ -77,21 +113,25 @@ int isdirectory(char *path) {
 }
 
 void copy_file(char* path_current, char* path_destiny) {
-  FILE *old_file, *new_file;
-  
-  old_file = fopen(path_current, "r");
-  new_file = fopen(path_destiny, "w");
+    FILE *old_file, *new_file;
+    
+    old_file = fopen(path_current, "r");
+    new_file = fopen(path_destiny, "w");
 
-  int char_buffer;
-  while(1) {
-    char_buffer = fgetc(old_file);
-    if(!feof(old_file))
-      fputc(char_buffer, new_file);
-    else break;
-  }
+    int read_count = 0;
 
-  fclose(new_file);
-  fclose(old_file);
+    fseek (old_file , 0 , SEEK_END);
+    int old_file_size = ftell (old_file);
+    rewind (old_file);
+
+    char * file_buffer = (char*) malloc (sizeof(char) * old_file_size);
+    
+    int count_read = fread (file_buffer, 1 ,old_file_size, old_file);
+    fwrite(file_buffer, sizeof(char), old_file_size, new_file);
+
+    fclose(new_file);
+    fclose(old_file);
+    free(file_buffer);
 }
 
 int only_zip_full_path(char *file_full_path){
@@ -126,8 +166,6 @@ int remove_dir(char *target_dir){
     return system(rm);
 }
 
-queue *fila;
-
 void keep_reading(char *current, char *destiny){
     struct dirent *entry;
     DIR *dp;
@@ -145,7 +183,7 @@ void keep_reading(char *current, char *destiny){
     strcpy(path_current, current);
     strcpy(path_destiny, destiny);
 
-    while((entry = readdir(dp)) != NULL){
+    while((entry = readdir(dp)) != NULL) {
         if((strcmp(entry->d_name, ".") != 0) && (strcmp(entry->d_name, "..") != 0)){
             strcat(path_current, "/");
             strcat(path_current, entry->d_name);
@@ -154,16 +192,16 @@ void keep_reading(char *current, char *destiny){
 
             if(isdirectory(path_current) != 0){ // se for diretório
                 // criar o mesmo diretório na pasta de output
-                
                 mkdir(path_destiny, 0777);
                 keep_reading(path_current, path_destiny);
             }
             else{ // se não for diretório   
-                // printf("\nCurrent: %s\n", path_current);
-                // printf("Destiny: %s\n", path_destiny);
                 copy_file(path_current, path_destiny);
                 printf("Enqueue %s\n", path_destiny);
                 enqueue(fila, path_destiny);
+                
+                if(flag++ == 1)
+                    pthread_cond_signal(&condition_var);
             }
 
             strcpy(path_current, current);
@@ -181,58 +219,34 @@ void *read_dir(void *argv) {
 }
 
 void *consume_queue() {
-    printf("CONSUME QUUE\n");
-    sleep(1);
+    pthread_cond_wait(&condition_var, &mutex);
+    printf("ACORDEI\n");
+
     while(!is_queue_empty(fila)) {
+        // pthread_mutex_lock(&mutex);
         char * string = dequeue(fila);
-        printf("Compactando: %s...\n", string);
+        printf("Thread: %lu | file: %s\n", pthread_self(), string);
+        // pthread_mutex_unlock(&mutex);
+
         only_zip_full_path(string);
     }
     
     return NULL;
 }
 
-int main(int argc, char **argv) {
-    if(argc != 3 || argv[1] == NULL || argv[2] == NULL){
-        printf("São esperados 2 argumentos: diretório alvo e diretório destino.\nOperação abortada.\n");
-        exit(1);
-    }
-
-    remove_dot_tar_from_string(argv[2]);
-    mkdir(argv[2], 0777);
-
-    fila = create_queue();
-
-    pthread_t read_thread;  
-    pthread_t compact_thread;  
-    pthread_attr_t a;
-
-    pthread_attr_init(&a);
-    pthread_attr_setscope(&a, PTHREAD_SCOPE_SYSTEM);
-
-    pthread_create(&read_thread, &a, read_dir, (void *)argv);
-    pthread_create(&compact_thread, &a, consume_queue, NULL);
-
-    pthread_join(compact_thread, NULL);
-    pthread_join(read_thread, NULL);
+void *consume_queue2() {
+    pthread_cond_wait(&condition_var, &mutex);
+    printf("ACORDEI");
     
+    while(!is_queue_empty(fila)) {
+        pthread_mutex_lock(&mutex);
+        char * string = dequeue(fila);
+        printf("SOU A THREAD %lu E PEGUEI O %s", pthread_self(), string);
 
-
-    // char *name;
-    // printf("\ndequeue & compact\n");
-    // name = dequeue(fila);
-    // puts(name);
-    // only_zip_full_path(name);
-
-    // printf("\ndequeue & compact\n");
-    // name = dequeue(fila);
-    // puts(name);
-    // only_zip_full_path(name);
-
-    // printf("\ndequeue & compact\n");
-    // name = dequeue(fila);
-    // puts(name);
-    // only_zip_full_path(name);
-
-    return 0;
+        pthread_mutex_unlock(&mutex);
+        printf("Compactando: %s...\n", string);
+        only_zip_full_path(string);
+    }
+    
+    return NULL;
 }
