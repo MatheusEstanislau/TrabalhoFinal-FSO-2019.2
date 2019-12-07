@@ -159,14 +159,11 @@ void keep_reading(char *current, char *destiny){
                 keep_reading(path_current, path_destiny);
             }
             else{ // se não for diretório   
-
-                printf("\nCurrent: %s\n", path_current);
+                // printf("\nCurrent: %s\n", path_current);
+                // printf("Destiny: %s\n", path_destiny);
                 copy_file(path_current, path_destiny);
-                printf("Destiny: %s\n", path_destiny);
-
                 printf("Enqueue %s\n", path_destiny);
                 enqueue(fila, path_destiny);
-
             }
 
             strcpy(path_current, current);
@@ -175,6 +172,24 @@ void keep_reading(char *current, char *destiny){
     }
 
     closedir(dp);
+}
+
+void *read_dir(void *argv) {
+    char ** paths = (char **) argv;
+    keep_reading(paths[1], paths[2]);
+    return NULL;
+}
+
+void *consume_queue() {
+    printf("CONSUME QUUE\n");
+    sleep(1);
+    while(!is_queue_empty(fila)) {
+        char * string = dequeue(fila);
+        printf("Compactando: %s...\n", string);
+        only_zip_full_path(string);
+    }
+    
+    return NULL;
 }
 
 int main(int argc, char **argv) {
@@ -188,23 +203,36 @@ int main(int argc, char **argv) {
 
     fila = create_queue();
 
-    keep_reading(argv[1], argv[2]);
+    pthread_t read_thread;  
+    pthread_t compact_thread;  
+    pthread_attr_t a;
+
+    pthread_attr_init(&a);
+    pthread_attr_setscope(&a, PTHREAD_SCOPE_SYSTEM);
+
+    pthread_create(&read_thread, &a, read_dir, (void *)argv);
+    pthread_create(&compact_thread, &a, consume_queue, NULL);
+
+    pthread_join(compact_thread, NULL);
+    pthread_join(read_thread, NULL);
     
-    char *name;
-    printf("\ndequeue & compact\n");
-    name = dequeue(fila);
-    puts(name);
-    only_zip_full_path(name);
 
-    printf("\ndequeue & compact\n");
-    name = dequeue(fila);
-    puts(name);
-    only_zip_full_path(name);
 
-    printf("\ndequeue & compact\n");
-    name = dequeue(fila);
-    puts(name);
-    only_zip_full_path(name);
+    // char *name;
+    // printf("\ndequeue & compact\n");
+    // name = dequeue(fila);
+    // puts(name);
+    // only_zip_full_path(name);
+
+    // printf("\ndequeue & compact\n");
+    // name = dequeue(fila);
+    // puts(name);
+    // only_zip_full_path(name);
+
+    // printf("\ndequeue & compact\n");
+    // name = dequeue(fila);
+    // puts(name);
+    // only_zip_full_path(name);
 
     return 0;
 }
