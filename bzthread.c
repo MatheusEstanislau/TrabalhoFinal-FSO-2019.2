@@ -40,7 +40,6 @@ void keep_reading(char *current, char *destiny);
 
 void *read_dir(void *argv);
 void *consume_queue();
-void *consume_queue2();
 
 int main(int argc, char **argv) {
     if(argc != 3 || argv[1] == NULL || argv[2] == NULL){
@@ -56,18 +55,20 @@ int main(int argc, char **argv) {
     pthread_t read_thread;  
     pthread_t compact_thread1;
     pthread_t compact_thread2;
-
-    // pthread_attr_t a;
-    // pthread_attr_init(&a);
-    // pthread_attr_setscope(&a, PTHREAD_SCOPE_PROCESS);
+    pthread_t compact_thread3;
+    pthread_t compact_thread4;
 
     pthread_create(&read_thread, NULL, read_dir, (void *)argv);
     pthread_create(&compact_thread1, NULL, consume_queue, NULL);
-    // pthread_create(&compact_thread2, NULL, consume_queue2, NULL);
+    pthread_create(&compact_thread2, NULL, consume_queue, NULL);
+    pthread_create(&compact_thread3, NULL, consume_queue, NULL);
+    pthread_create(&compact_thread4, NULL, consume_queue, NULL);
 
-    pthread_join(compact_thread1, NULL);
-    // pthread_join(compact_thread2, NULL);
     pthread_join(read_thread, NULL);
+    pthread_join(compact_thread1, NULL);
+    pthread_join(compact_thread2, NULL);
+    pthread_join(compact_thread3, NULL);
+    pthread_join(compact_thread4, NULL);
     
     make_tar(argv[2]);
     remove_dir(argv[2]);
@@ -197,11 +198,10 @@ void keep_reading(char *current, char *destiny){
             }
             else{ // se não for diretório   
                 copy_file(path_current, path_destiny);
-                printf("Enqueue %s\n", path_destiny);
                 enqueue(fila, path_destiny);
                 
                 if(flag++ == 1)
-                    pthread_cond_signal(&condition_var);
+                    pthread_cond_broadcast(&condition_var); 
             }
 
             strcpy(path_current, current);
@@ -219,33 +219,14 @@ void *read_dir(void *argv) {
 }
 
 void *consume_queue() {
+    pthread_mutex_lock(&mutex);
     pthread_cond_wait(&condition_var, &mutex);
-    printf("ACORDEI\n");
 
     while(!is_queue_empty(fila)) {
-        // pthread_mutex_lock(&mutex);
         char * string = dequeue(fila);
-        printf("Thread: %lu | file: %s\n", pthread_self(), string);
-        // pthread_mutex_unlock(&mutex);
 
         only_zip_full_path(string);
-    }
-    
-    return NULL;
-}
-
-void *consume_queue2() {
-    pthread_cond_wait(&condition_var, &mutex);
-    printf("ACORDEI");
-    
-    while(!is_queue_empty(fila)) {
-        pthread_mutex_lock(&mutex);
-        char * string = dequeue(fila);
-        printf("SOU A THREAD %lu E PEGUEI O %s", pthread_self(), string);
-
         pthread_mutex_unlock(&mutex);
-        printf("Compactando: %s...\n", string);
-        only_zip_full_path(string);
     }
     
     return NULL;
