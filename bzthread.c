@@ -3,6 +3,8 @@
 #include <string.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
 #include <limits.h>
@@ -35,7 +37,6 @@ void copy_file(char* path_current, char* path_destiny);
 int only_zip_full_path(char *file_full_path);
 int make_tar(char *target_dir);
 void remove_dot_tar_from_string(char* string);
-int remove_dir(char *target_dir);
 void keep_reading(char *current, char *destiny);
 
 void *read_dir(void *argv);
@@ -71,7 +72,6 @@ int main(int argc, char **argv) {
     pthread_join(compact_thread4, NULL);
     
     make_tar(argv[2]);
-    remove_dir(argv[2]);
     
     return 0;
 }
@@ -136,7 +136,7 @@ void copy_file(char* path_current, char* path_destiny) {
 }
 
 int only_zip_full_path(char *file_full_path){
-    char bz[500] = "";
+    char bz[FILE_SIZE] = "";
     strcat(bz, "bzip2 \"");
     strcat(bz, file_full_path);
     strcat(bz, "\"");
@@ -144,27 +144,24 @@ int only_zip_full_path(char *file_full_path){
 }
 
 int make_tar(char *target_dir){
-    char tar[500] = "";
+    char tar[FILE_SIZE] = "";
 
     strcat(tar, "tar cf ");
     strcat(tar, target_dir);
     strcat(tar, ".tar ");
     strcat(tar, target_dir);
-    return system(tar);
+    strcat(tar, " --remove-files");
+    
+    FILE *p;
+    p = popen(tar, "r");
+    wait(NULL);
+    pclose(p);
 }
 
 void remove_dot_tar_from_string(char* string){
-    char temp[500] = ""; // pode ser insuficiente para arquivos grandes...
+    char temp[FILE_SIZE] = ""; // pode ser insuficiente para arquivos grandes...
     strncat(temp, string, strlen(string)-4);
     strcpy(string, temp);
-}
-
-int remove_dir(char *target_dir){
-    char rm[500] = "";
-
-    strcat(rm, "rm -rf ");
-    strcat(rm, target_dir);
-    return system(rm);
 }
 
 void keep_reading(char *current, char *destiny){
@@ -178,8 +175,8 @@ void keep_reading(char *current, char *destiny){
         exit(2);
     }
 
-    char path_current[500] = "";
-    char path_destiny[500] = "";
+    char path_current[FILE_SIZE] = "";
+    char path_destiny[FILE_SIZE] = "";
 
     strcpy(path_current, current);
     strcpy(path_destiny, destiny);
